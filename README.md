@@ -1,101 +1,141 @@
-# docker-stacks
+![docker pulls](https://img.shields.io/docker/pulls/jupyter/tensorflow-notebook.svg) ![docker stars](https://img.shields.io/docker/stars/jupyter/tensorflow-notebook.svg) [![](https://images.microbadger.com/badges/image/jupyter/tensorflow-notebook.svg)](https://microbadger.com/images/jupyter/tensorflow-notebook "jupyter/tensorflow-notebook image metadata")
 
-[![Build Status](https://travis-ci.org/jupyter/docker-stacks.svg?branch=master)](https://travis-ci.org/jupyter/docker-stacks)
-[![Join the chat at https://gitter.im/jupyter/jupyter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/jupyter/jupyter?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+# Jupyter Notebook Scientific Python Stack + Tensorflow
 
-Opinionated stacks of ready-to-run Jupyter applications in Docker.
+## What it Gives You
 
-## Quick Start
+* Everything in [Scipy Notebook](https://github.com/jupyter/docker-stacks/tree/master/scipy-notebook)
+* Tensorflow for Python 2.7 and 3.5 (without GPU support)
 
-If you're familiar with Docker, have it configured, and know exactly what you'd like to run, this one-liner should work in most cases:
+## Basic Use
+
+The following command starts a container with the Notebook server listening for HTTP connections on port 8888 with a randomly generated authentication token configured.
 
 ```
-docker run -d -P jupyter/<your desired stack>
+docker run -it --rm -p 8888:8888 jupyter/tensorflow-notebook
 ```
 
-## Getting Started
+Take note of the authentication token included in the notebook startup log messages. Include it in the URL you visit to access the Notebook server or enter it in the Notebook login form.
 
-If this is your first time using Docker or any of the Jupyter projects, do the following to get started.
+## Tensorflow Single Machine Mode
 
-1. [Install Docker](https://docs.docker.com/installation/) on your host of choice.
-2. Open the README in one of the folders in this git repository.
-3. Follow the README for that stack.
+As distributed tensorflow is still immature, we currently only provide the single machine mode.
 
-## Visual Overview
+```
+import tensorflow as tf
 
-Here's a diagram of the `FROM` relationships between all of the images defined in this project:
+hello = tf.Variable('Hello World!')
 
-[![Image inheritance diagram](internal/inherit-diagram.png)](http://interactive.blockdiag.com/?compression=deflate&src=eJyFzbEOgkAMgOGdp7iwsxsJRjZ3R2NMjyumcrTkrsag8d3l3I6F9e_X1nrpBkdwN5_CGAmErKAkbBozSdAApPUycdjD0-utF9ZIb1zGu9Rbc_Fg0TelQ0vA-wfGSHg8n9ryWhd_UR2MhYgVi6IVGdJeFpIYiWkEn6F1Sy52NM2Zyksyihwl9F5eG9CBwlKRO9x8HDZuTXOcIAyZWrfkwPtqLb8_jh2GrQ)
+sess = tf.Session()
+init = tf.global_variables_initializer()
 
-## Stacks, Tags, Versioning, and Progress
+sess.run(init)
+sess.run(hello)
+```
 
-Starting with [git commit SHA 9bd33dcc8688](https://github.com/jupyter/docker-stacks/tree/9bd33dcc8688):
+## Notebook Options
 
-* Nearly every folder here on GitHub has an equivalent `jupyter/<stack name>` on Docker Hub (e.g., all-spark-notebook &rarr; jupyter/all-spark-notebook).
-* The `latest` tag in each Docker Hub repository tracks the `master` branch `HEAD` reference on GitHub.
-* Any 12-character image tag on Docker Hub refers to a git commit SHA here on GitHub. See the [Docker build history wiki page](https://github.com/jupyter/docker-stacks/wiki/Docker-build-history) for a table of build details.
-* Stack contents (e.g., new library versions) will be updated upon request via PRs against this project.
-* Users looking to remain on older builds should refer to specific git SHA tagged images in their work, not `latest`.
-* For legacy reasons, there are two additional tags named `3.2` and `4.0` on Docker Hub which point to images prior to our versioning scheme switch.
+The Docker container executes a [`start-notebook.sh` script](../base-notebook/start-notebook.sh) script by default. The `start-notebook.sh` script handles the `NB_UID`, `NB_GID` and `GRANT_SUDO` features documented in the next section, and then executes the `jupyter notebook`.
 
-## Other Tips and Known Issues
+You can pass [Jupyter command line options](https://jupyter.readthedocs.io/en/latest/projects/jupyter-command.html) through the `start-notebook.sh` script when launching the container. For example, to secure the Notebook server with a custom password hashed using `IPython.lib.passwd()` instead of the default token, run the following:
 
-* `tini -- start-notebook.sh` is the default Docker entrypoint-plus-command in every notebook stack. If you plan to modify it in any way, be sure to check the *Notebook Options* section of your stack's README to understand the consequences.
-* Every notebook stack is compatible with [JupyterHub](https://jupyterhub.readthedocs.io) 0.5 or higher.  When running with JupyterHub, you must override the Docker run command to point to the [start-singleuser.sh](base-notebook/start-singleuser.sh) script, which starts a single-user instance of the Notebook server.  See each stack's README for instructions on running with JupyterHub.
-* Check the [Docker recipes wiki page](https://github.com/jupyter/docker-stacks/wiki/Docker-Recipes) attached to this project for information about extending and deploying the Docker images defined here. Add to the wiki if you have relevant information.
-* The pyspark-notebook and all-spark-notebook stacks will fail to submit Spark jobs to a Mesos cluster when run on Mac OSX due to https://github.com/docker/for-mac/issues/68.
+```
+docker run -d -p 8888:8888 jupyter/tensorflow-notebook start-notebook.sh --NotebookApp.password='sha1:74ba40f8a388:c913541b7ee99d15d5ed31d4226bf7838f83a50e'
+```
 
-## Maintainer Workflow
+For example, to set the base URL of the notebook server, run the following:
 
-**To build new images on Docker Cloud and publish them to the Docker Hub registry, do the following:**
+```
+docker run -d -p 8888:8888 jupyter/tensorflow-notebook start-notebook.sh --NotebookApp.base_url=/some/path
+```
 
-1. Make sure Travis is green for a PR.
-2. Merge the PR.
-3. Monitor the Docker Cloud build status for each of the stacks, starting with [jupyter/base-notebook](https://cloud.docker.com/app/jupyter/repository/docker/jupyter/base-notebook/general) and ending with [jupyter/all-spark-notebook](https://cloud.docker.com/app/jupyter/repository/docker/jupyter/all-spark-notebook/general).
-    * See the stack hierarchy diagram for the current, complete build order.
-4. Manually click the retry button next to any build that fails to resume that build and any dependent builds.
-5. Avoid merging another PR to master until all outstanding builds complete.
-    * There's no way at present to propagate the git SHA to build through the Docker Cloud build trigger API. Every build trigger works off of master HEAD.
+For example, to disable all authentication mechanisms (not a recommended practice):
 
-**When there's a security fix in the Ubuntu base image, do the following in place of the last command:**
+```
+docker run -d -p 8888:8888 jupyter/tensorflow-notebook start-notebook.sh --NotebookApp.token=''
+```
 
-Update the `ubuntu:16.04` SHA in the most-base images (e.g., base-notebook). Submit it as a regular PR and go through the build process. Expect the build to take a while to complete: every image layer will rebuild.
+You can sidestep the `start-notebook.sh` script and run your own commands in the container. See the *Alternative Commands* section later in this document for more information.
 
-**When there's a new stack definition, do the following before merging the PR with the new stack:**
+## Docker Options
 
-1. Ensure the PR includes an update to the stack overview diagram in the top-level README.
-    * The source of the diagram is included in the alt-text of the image. Visit that URL to make edits.
-2. Ensure the PR updates the Makefile which is used to build the stacks in order on Travis CI.
-3. Create a new repoistory in the `jupyter` org on Docker Cloud named after the stack folder in the git repo.
-4. Grant the `stacks` team permission to write to the repo.
-5. Click *Builds* and then *Configure Automated Builds* for the repository.
-6. Select `jupyter/docker-stacks` as the source repository.
-7. Choose *Build on Docker Cloud's infrastructure using a Small node* unless you have reason to believe a bigger host is required.
-8. Update the *Build Context* in the default build rule to be `/<name-of-the-stack>`.
-9. Toggle *Autobuild* to disabled unless the stack is a new root stack (e.g., like `jupyter/base-notebook`).
-10. If the new stack depends on the build of another stack in the hierarchy:
-    1. Hit *Save* and then click *Configure Automated Builds*.
-    2. At the very bottom, add a build trigger named *Stack hierarchy trigger*.
-    3. Copy the build trigger URL.
-    4. Visit the parent repository *Builds* page and click *Configure Automated Builds*.
-    5. Add the URL you copied to the *NEXT_BUILD_TRIGGERS* environment variable comma separated list of URLs, creating that environment variable if it does not already exist.
-    6. Hit *Save*.
-11. If the new stack should trigger other dependent builds:
-    1. Add an environment variable named *NEXT_BUILD_TRIGGERS*.
-    2. Copy the build trigger URLs from the dependent builds into the *NEXT_BUILD_TRIGGERS* comma separated list of URLs.
-    3. Hit *Save*.
-12. Adjust other *NEXT_BUILD_TRIGGERS* values as needed so that the build order matches that in the stack hierarchy diagram.
+You may customize the execution of the Docker container and the command it is running with the following optional arguments.
 
-**When there's a new maintainer, do the following:**
+* `-e GEN_CERT=yes` - Generates a self-signed SSL certificate and configures Jupyter Notebook to use it to accept encrypted HTTPS connections.
+* `-e NB_UID=1000` - Specify the uid of the `jovyan` user. Useful to mount host volumes with specific file ownership. For this option to take effect, you must run the container with `--user root`. (The `start-notebook.sh` script will `su jovyan` after adjusting the user id.)
+* `-e NB_GID=100` - Specify the gid of the `jovyan` user. Useful to mount host volumes with specific file ownership. For this option to take effect, you must run the container with `--user root`. (The `start-notebook.sh` script will `su jovyan` after adjusting the group id.)
+* `-e GRANT_SUDO=yes` - Gives the `jovyan` user passwordless `sudo` capability. Useful for installing OS packages. For this option to take effect, you must run the container with `--user root`. (The `start-notebook.sh` script will `su jovyan` after adding `jovyan` to sudoers.) **You should only enable `sudo` if you trust the user or if the container is running on an isolated host.**
+* `-v /some/host/folder/for/work:/home/jovyan/work` - Host mounts the default working directory on the host to preserve work even when the container is destroyed and recreated (e.g., during an upgrade).
 
-1. Visit https://cloud.docker.com/app/jupyter/team/stacks/users
-2. Add the new maintainer user name.
+## SSL Certificates
 
-**If automated builds have got you down, do the following:**
+You may mount SSL key and certificate files into a container and configure Jupyter Notebook to use them to accept HTTPS connections. For example, to mount a host folder containing a `notebook.key` and `notebook.crt`:
 
-1. Clone this repository.
-2. Check out the git SHA you want to build and publish.
-3. `docker login` with your Docker Hub/Cloud credentials.
-4. Run `make retry/release-all`.
+```
+docker run -d -p 8888:8888 \
+    -v /some/host/folder:/etc/ssl/notebook \
+    jupyter/tensorflow-notebook start-notebook.sh \
+    --NotebookApp.keyfile=/etc/ssl/notebook/notebook.key
+    --NotebookApp.certfile=/etc/ssl/notebook/notebook.crt
+```
 
-When `make retry/release-all` successfully pushes the last of its images to Docker Hub (currently `jupyter/all-spark-notebook`), Docker Hub invokes [the webhook](https://github.com/jupyter/docker-stacks/blob/master/internal/docker-stacks-webhook/) which updates the [Docker build history](https://github.com/jupyter/docker-stacks/wiki/Docker-build-history) wiki page.
+Alternatively, you may mount a single PEM file containing both the key and certificate. For example:
+
+```
+docker run -d -p 8888:8888 \
+    -v /some/host/folder/notebook.pem:/etc/ssl/notebook.pem \
+    jupyter/tensorflow-notebook start-notebook.sh \
+    --NotebookApp.certfile=/etc/ssl/notebook.pem
+```
+
+In either case, Jupyter Notebook expects the key and certificate to be a base64 encoded text file. The certificate file or PEM may contain one or more certificates (e.g., server, intermediate, and root).
+
+For additional information about using SSL, see the following:
+
+* The [docker-stacks/examples](https://github.com/jupyter/docker-stacks/tree/master/examples) for information about how to use [Let's Encrypt](https://letsencrypt.org/) certificates when you run these stacks on a publicly visible domain.
+* The [jupyter_notebook_config.py](jupyter_notebook_config.py) file for how this Docker image generates a self-signed certificate.
+* The [Jupyter Notebook documentation](https://jupyter-notebook.readthedocs.io/en/latest/public_server.html#using-ssl-for-encrypted-communication) for best practices about running a public notebook server in general, most of which are encoded in this image.
+
+
+## Conda Environments
+
+The default Python 3.x [Conda environment](http://conda.pydata.org/docs/using/envs.html) resides in `/opt/conda`. 
+
+The commands `jupyter`, `ipython`, `python`, `pip`, and `conda` (among others) are available in both environments. For convenience, you can install packages into either environment regardless of what environment is currently active using commands like the following:
+
+```
+# install a package into the default (python 3.x) environment
+pip install some-package
+conda install some-package
+```
+
+
+## Alternative Commands
+
+### start-singleuser.sh
+
+[JupyterHub](https://jupyterhub.readthedocs.io) requires a single-user instance of the Jupyter Notebook server per user.   To use this stack with JupyterHub and [DockerSpawner](https://github.com/jupyter/dockerspawner), you must specify the container image name and override the default container run command in your `jupyterhub_config.py`:
+
+```python
+# Spawn user containers from this image
+c.DockerSpawner.container_image = 'jupyter/tensorflow-notebook'
+
+# Have the Spawner override the Docker run command
+c.DockerSpawner.extra_create_kwargs.update({
+	'command': '/usr/local/bin/start-singleuser.sh'
+})
+```
+
+### start.sh
+
+The `start.sh` script supports the same features as the default `start-notebook.sh` script (e.g., `GRANT_SUDO`), but allows you to specify an arbitrary command to execute. For example, to run the text-based `ipython` console in a container, do the following:
+
+```
+docker run -it --rm jupyter/tensorflow-notebook start.sh ipython
+```
+
+This script is particularly useful when you derive a new Dockerfile from this image and install additional Jupyter applications with subcommands like `jupyter console`, `jupyter kernelgateway`, and `jupyter lab`.
+
+### Others
+
+You can bypass the provided scripts and specify your an arbitrary start command. If you do, keep in mind that certain features documented above will not function (e.g., `GRANT_SUDO`).
